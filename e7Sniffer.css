@@ -1,0 +1,10 @@
+/* CSS declarations go here */
+
+/*td.hashighlight {background-color:pink}*/
+
+table.tableborders {border:2px solid black;font-family: georgia;text-align:center;}
+th {border:2px solid black;text-align:center} 
+td {border:2px solid black} 
+td.pink_cell {background-color:pink}
+td.medium_purple_cell {background-color:MediumPurple}
+

@@ -1,0 +1,59 @@
+
+<!--<script type="text/javascript">
+
+
+</script>
+-->
+
+<!--bgcolor="red"-->
+
+<head>
+<title>Monkey King's Garden</title>
+    <style type="text/css">
+        body {background-color: Lavender;}
+    </style>
+</head>
+
+<body>
+    {{> e7_clientes}}
+</body>
+
+<template name="e7_clientes">
+    <div>
+        <img src="wukong.jpg"  alt="Sun Wukong" width="120" height="120"/>
+    </div>
+    <div class="panel-heading">
+        <h1 >E7-2 <i class="fa fa-bicycle fa-1x"></i> </h1> 
+    </div>
+    <div class="panel-body">
+        {{> reactiveTable class="tableborders table-striped" collection=e7_2_tables settings=e7_tableSettings }}
+    </div>
+
+    <div class="panel-heading">
+        <h1 >E7-20 <i class="fa fa-car fa-1x"></i> </h1> 
+    </div>
+    <div class="panel-body">
+        {{> reactiveTable class="tableborders table-striped" collection=e7_20_tables settings=e7_tableSettings }}
+    </div>
+
+    <div class="panel-heading">
+        <h1 >E3-48C <i class="fa fa-train fa-1x"></i> </h1> 
+    </div>
+    <div class="panel-body">
+        {{> reactiveTable class="tableborders table-striped" collection=e3_48c_tables settings=e7_tableSettings }}
+    </div>
+
+    <div class="panel-heading">
+        <h1 >E5-48 & E5-48C <i class="fa fa-plane fa-1x"></i> </h1> 
+    </div>
+    <div class="panel-body">
+        {{> reactiveTable class="tableborders table-striped" collection=e5_48_tables settings=e7_tableSettings }}
+    </div>
+
+    <div class="panel-heading">
+        <h1 >Other <i class="fa fa-wheelchair fa-1x"></i> </h1> 
+    </div>
+    <div class="panel-body">
+        {{> reactiveTable class="tableborders table-striped" collection=other_tables settings=e7_tableSettings }}
+    </div>
+</template>
