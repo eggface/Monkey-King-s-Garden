@@ -4,9 +4,6 @@
 # 2, Output: data will be inserted into MongoDB for Meteor
 # Date: 20150609
 # Author: James Wang
-# ----------------------------
-# Fix log:
-# 20150630, to remember unmatched fingerprint
 #==============================
 $VERBOSE=nil
 require "pp"
@@ -235,124 +232,125 @@ class SnifferAction
     def sniff(ip, port, user, passwd)
         puts "sniffing #{ip} port #{port} as #{user} with password #{passwd}..."
 
-        Net::SSH.start(ip, user, :port=>port, :password=>passwd, :timeout=>6, :non_interactive=>true) do |session|
-	    # The rescue block is used to ignore the change in key and still login using ssh
-            begin
-		rescue Net::SSH::HostKeyMismatch => e
-                log_puts "[HostKeyMismatch for #{ip}] remembering new key: #{e.fingerprint}"
-                e.remember_host!
-                retry
-	    end
+        #Add SSH fingerprint mismatch exception handling.
+        begin
+            Net::SSH.start(ip, user, :port=>port, :password=>passwd, :timeout=>6, :non_interactive=>true) do |session|
 
-            session.open_channel do |channel|
+                session.open_channel do |channel|
 
-                channel[:data] = ""
-                @flag_close_channel = false
+                    channel[:data] = ""
+                    @flag_close_channel = false
 
-                device_object = nil
+                    device_object = nil
 
-                channel.request_pty do |ch, success|
-                    raise "Error requsting pty" unless success
+                    channel.request_pty do |ch, success|
+                        raise "Error requsting pty" unless success
 
-                    # Use this method unless it is a CLI
-                    #ch.send_channel_request("shell") do |ch, success|
-                        #raise "Error opening shell" unless success
-                    #end
-                    
-                    # need Netconf subsystem
-                    channel.subsystem("netconf") do |ch, success|
-                        raise "Error requesting netconf subsystem." unless success
-                    end
-                end
-
-                channel.on_data do |ch, data|
-                    #STDOUT.print data
-                    channel[:data] << data
-                end
-
-                channel.on_process do |ch|
-                    if @flag_close_channel == false and channel[:data].size > 0 and channel[:data].include?("hello")
-                        log_puts "Found [#{ip}] has Netconf response."
-                        #@@sniffer_ip_found_ary << ip
-                        hellomsg = channel[:data]
-                        #$input_array << "[" +  ip + "]" + hellomsg
-                        log_puts "[#{ip}] has Netconf response [#{hellomsg}]"
-
-                        #decode hello message and create DeviceObject
-                        device_object = DeviceObject.decode_hello_msg("[" +  ip + "]" + hellomsg)
-                        #initial device for plugin
-                        NCPlugins.set_device device_object
-
-                        #check mode
-                        mode = device_object.get_mode 
-                        req = nil
-                        if mode.eql? "e5-400" or mode.eql? "e5-312"
-                            req = NCPlugins.get_close_str
-                            puts "It is [#{mode}]. And to send request: #{req}"
-                        else
-                            #entrance id setting
-                            msgid = $ENTRANCE_ID
-                            puts "entrance id is: #{msgid}"
-                            plugin = NCPlugins.get_plugin msgid
-                            req = plugin.get_req
-                            puts "[main] suppose to send #{req}"
+                        # Use this method unless it is a CLI
+                        #ch.send_channel_request("shell") do |ch, success|
+                            #raise "Error opening shell" unless success
+                        #end
+                        
+                        # need Netconf subsystem
+                        channel.subsystem("netconf") do |ch, success|
+                            raise "Error requesting netconf subsystem." unless success
                         end
+                    end
 
-                        channel[:data] = ""
-                        ch.send_data req 
-                    elsif channel[:data].size > 0 and !channel[:data].include?("</rpc-reply>")
-                        puts "Netconf message is not end yet, keep waiting ..."
-                    elsif @flag_close_channel == false and channel[:data].size > 0 
-                        puts "in Channel..."
+                    channel.on_data do |ch, data|
+                        #STDOUT.print data
+                        channel[:data] << data
+                    end
 
-                        result = channel[:data]
-                        log_puts "[#{ip}] has Netconf response [#{result}]"
+                    channel.on_process do |ch|
+                        if @flag_close_channel == false and channel[:data].size > 0 and channel[:data].include?("hello")
+                            log_puts "Found [#{ip}] has Netconf response."
+                            #@@sniffer_ip_found_ary << ip
+                            hellomsg = channel[:data]
+                            #$input_array << "[" +  ip + "]" + hellomsg
+                            log_puts "[#{ip}] has Netconf response [#{hellomsg}]"
 
-                        msgid = NCPlugins.parse_msgid result
-                        puts "[main] msgid is: #{msgid}"
+                            #decode hello message and create DeviceObject
+                            device_object = DeviceObject.decode_hello_msg("[" +  ip + "]" + hellomsg)
+                            #initial device for plugin
+                            NCPlugins.set_device device_object
 
-                        if msgid != $MESSAGE_ID_END
-                            plugin = NCPlugins.get_plugin msgid
-                            req = plugin.parse_send result
-                            puts "[main] suppose to send #{req}"
+                            #check mode
+                            mode = device_object.get_mode 
+                            req = nil
+                            if mode.eql? "e5-400" or mode.eql? "e5-312"
+                                req = NCPlugins.get_close_str
+                                puts "It is [#{mode}]. And to send request: #{req}"
+                            else
+                                #entrance id setting
+                                msgid = $ENTRANCE_ID
+                                puts "entrance id is: #{msgid}"
+                                plugin = NCPlugins.get_plugin msgid
+                                req = plugin.get_req
+                                puts "[main] suppose to send #{req}"
+                            end
 
                             channel[:data] = ""
                             ch.send_data req 
-                        else
-                            puts "[main] end Netconf, start writing device object to database"
-                            device_object.to_mongo 
-                            @flag_close_channel = true
+                        elsif channel[:data].size > 0 and !channel[:data].include?("</rpc-reply>")
+                            puts "Netconf message is not end yet, keep waiting ..."
+                        elsif @flag_close_channel == false and channel[:data].size > 0 
+                            puts "in Channel..."
+
+                            result = channel[:data]
+                            log_puts "[#{ip}] has Netconf response [#{result}]"
+
+                            msgid = NCPlugins.parse_msgid result
+                            puts "[main] msgid is: #{msgid}"
+
+                            if msgid != $MESSAGE_ID_END
+                                plugin = NCPlugins.get_plugin msgid
+                                req = plugin.parse_send result
+                                puts "[main] suppose to send #{req}"
+
+                                channel[:data] = ""
+                                ch.send_data req 
+                            else
+                                puts "[main] end Netconf, start writing device object to database"
+                                device_object.to_mongo 
+                                @flag_close_channel = true
+                            end
+
+                            puts "out Channel..."
+                            puts ""
                         end
-
-                        puts "out Channel..."
-                        puts ""
                     end
-                end
 
-                channel.on_extended_data do |ch, type, data|
-                    STDOUT.print "Error: #{data}\n"
-                end
+                    channel.on_extended_data do |ch, type, data|
+                        STDOUT.print "Error: #{data}\n"
+                    end
 
-                channel.on_request("exit-status") do |ch,data|
-                    puts "in on_request exit-status"
-                    exit_code = data.read_long
-                end
-                
-                channel.on_request("exit-signal") do |ch, data|
-                    puts "in on_request exit-signal"
-                    exit_signal = data.read_long
-                end
+                    channel.on_request("exit-status") do |ch,data|
+                        puts "in on_request exit-status"
+                        exit_code = data.read_long
+                    end
+                    
+                    channel.on_request("exit-signal") do |ch, data|
+                        puts "in on_request exit-signal"
+                        exit_signal = data.read_long
+                    end
 
-                channel.on_eof do |ch|
-                    puts "remote end is done sending data"
-                end
+                    channel.on_eof do |ch|
+                        puts "remote end is done sending data"
+                    end
 
-                channel.on_close do |ch|
-                  puts "channel is closing!"
-                end
+                    channel.on_close do |ch|
+                      puts "channel is closing!"
+                    end
 
-                session.loop
-            end
+                    session.loop
+                end #Session end
+            end #Net end
+        rescue Net::SSH::HostKeyMismatch => e
+        # The rescue block is used to ignore the change in key and still login using ssh
+          log_puts "[HostKeyMismatch for #{ip}] remembering new key: #{e.fingerprint}"
+          e.remember_host!
+          retry
         end
     end
     
