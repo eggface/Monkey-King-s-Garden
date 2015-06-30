@@ -4,6 +4,9 @@
 # 2, Output: data will be inserted into MongoDB for Meteor
 # Date: 20150609
 # Author: James Wang
+# ----------------------------
+# Fix log:
+# 20150630, to remember unmatched fingerprint
 #==============================
 $VERBOSE=nil
 require "pp"
@@ -233,6 +236,14 @@ class SnifferAction
         puts "sniffing #{ip} port #{port} as #{user} with password #{passwd}..."
 
         Net::SSH.start(ip, user, :port=>port, :password=>passwd, :timeout=>6, :non_interactive=>true) do |session|
+	    # The rescue block is used to ignore the change in key and still login using ssh
+            begin
+		rescue Net::SSH::HostKeyMismatch => e
+                log_puts "[HostKeyMismatch for #{ip}] remembering new key: #{e.fingerprint}"
+                e.remember_host!
+                retry
+	    end
+
             session.open_channel do |channel|
 
                 channel[:data] = ""
