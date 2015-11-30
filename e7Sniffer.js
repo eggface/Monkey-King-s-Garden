@@ -20,8 +20,12 @@ if (Meteor.isClient) {
               return Devices.find({mode: {$in: ["e5-48", "e5-48c"]}});
         },
 
+        e3_8g_tables: function () {
+              return Devices.find({mode: "e3-8g"}, {sort: {ver: -1}});
+        },
+
         other_tables: function () {
-            return Devices.find({mode: {$nin: ["e7-2", "e7-20", "e3-48c", "e5-48", "e5-48c"]}});
+            return Devices.find({mode: {$nin: ["e7-2", "e7-20", "e3-48c", "e5-48", "e5-48c", "e3-8g"]}});
         }
     });
 
